@@ -63,13 +63,7 @@ const PipelineContainer: FC<PipelineContainerProps> = ({
 
   useEffect(() => {
     if (!pipelineEvent) return
-
-    setPipelines((prev) => {
-      const next = mergeStageUpdate(prev, pipelineEvent)
-      onOverallProgressChange?.(computeOverallProgress(next))
-      onSummaryChange?.(summarizeStages(next))
-      return next
-    })
+    setPipelines((prev) => mergeStageUpdate(prev, pipelineEvent))
   }, [pipelineEvent, onOverallProgressChange, onSummaryChange])
 
   useEffect(() => {

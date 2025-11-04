@@ -71,7 +71,7 @@ export const PIPELINE_STAGE_META: Record<string, PipelineStageMeta> = {
   },
   rag: {
     title: '4. RAG/LLM 교정',
-    description: 'AI 교정 결과를 검토하고 화자별 목소리를 매핑하세요',
+    description: 'AI 교정 결과를 검토하고, 번역가를 지정해 상세 번역을 요청하세요',
     estimatedTime: '3분',
   },
   tts: {
