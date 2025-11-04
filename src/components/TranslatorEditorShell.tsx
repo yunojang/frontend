@@ -4,14 +4,13 @@ import { fetchProjectDetail } from '@/features/projects/services/projects'
 import type {
   ProjectDetail,
   ProjectSegment,
-  ProjectSegmentIssue,
   Translation,
   TranslationIssue,
   TranslationIssueType,
 } from '@/types'
 import { AdvancedTranslationEditor } from './AdvancedTranslationEditor'
-import type { TranslatorAssignment } from './TranslatorAssignments'
 import { Button } from './ui/button'
+import type { TranslatorAssignment } from '@/pages/TranslatorPage'
 
 interface TranslatorEditorShellProps {
   assignment: TranslatorAssignment
@@ -32,8 +31,8 @@ const formatTime = (seconds: number): string => {
   return `${h}:${m}:${s}`
 }
 
-const mapIssue = (issue: ProjectSegmentIssue): TranslationIssue => {
-  const message = (issue.issueContext || issue.issueId || '알 수 없는 이슈').toString()
+const mapIssue = (issue: TranslationIssue): TranslationIssue => {
+  const message = issue.message
   let type: TranslationIssueType = 'term'
   let severity: 'warning' | 'error' = 'warning'
 
@@ -47,6 +46,7 @@ const mapIssue = (issue: ProjectSegmentIssue): TranslationIssue => {
   }
 
   return {
+    ...issue,
     type,
     severity,
     message,

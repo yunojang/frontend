@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import type { Translation } from '../../types'
 
-export const StatisticsCard = ({ editedTranslations }: Translation[]) => {
+export const StatisticsCard = ({ editedTranslations }: { editedTranslations: Translation[] }) => {
   return (
     <Card>
       <CardHeader className="pb-3">

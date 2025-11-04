@@ -36,10 +36,12 @@ export type TranslationIssueType = 'term' | 'length' | 'number' | 'tone'
 export type TranslationIssueSeverity = 'warning' | 'error'
 
 export interface TranslationIssue {
+  _id: string
   type: TranslationIssueType
+  kind?: string
   severity: TranslationIssueSeverity
   message: string
-  suggestion?: string
+  recommend_text: string
 }
 
 export interface CorrectionSuggestion {
@@ -159,7 +161,7 @@ export interface ProjectSegment {
   end: number
   length: number
   score?: number | null
-  issues?: ProjectSegmentIssue[]
+  issues?: TranslationIssue[]
   assets?: SegmentAssetKeys
 }
 

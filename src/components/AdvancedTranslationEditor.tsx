@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
 import { Badge } from './ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog'
 import {
@@ -19,7 +18,6 @@ import {
   Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { VoiceSelector } from './VoiceSelector'
 import type {
   Translation,
   CorrectionSuggestion,
@@ -29,9 +27,9 @@ import type {
 import { createSegmentPreview, getSegmentPreview } from '../api/editor'
 import { fetchJobStatus, requestSegmentRetranslate } from '../features/projects/services/jobs'
 import { Suggestion } from './editor/LangSuggest'
-import { TermCorrectionCard } from './editor/LangCorrection'
 import { IussueCard } from './editor/IussueCard'
 import { StatisticsCard } from './editor/StatisticsCard'
+import { TermCorrectionCard } from './editor/LangCorrection'
 
 export interface AdvancedTranslationEditorProps {
   projectID: string
@@ -52,17 +50,25 @@ export function AdvancedTranslationEditor({
   translations,
   onSave,
   onBack,
-  isDubbing = false,
-  showVoiceSelector = true,
-  onVoiceChange,
+  // isDubbing = false,
+  // showVoiceSelector = true,
+  // onVoiceChange,
 }: AdvancedTranslationEditorProps) {
   const [editedTranslations, setEditedTranslations] = useState<Translation[]>(translations)
-  const [selectedTab, setSelectedTab] = useState<'edit' | 'voice' | 'output'>('edit')
-  const handleTabChange = (value: string) => {
-    if (value === 'edit' || value === 'voice' || value === 'output') {
-      setSelectedTab(value)
-    }
-  }
+  // const [selectedTab, setSelectedTab] = useState<'edit' | 'voice' | 'output'>('edit')
+  // const handleTabChange = (value: string) => {
+  //   if (value === 'edit' || value === 'voice' || value === 'output') {
+  //     setSelectedTab(value)
+  //   }
+  // }
+
+  console.log(editedTranslations)
+
+  const enrichTranslations = useMemo(
+    () => editedTranslations.map((t) => ({ ...t, issues: t.issues ?? [] })),
+    [editedTranslations]
+  )
+
   const translationGroups = useMemo(() => {
     const groups: {
       key: string
@@ -91,10 +97,11 @@ export function AdvancedTranslationEditor({
     return groups.map((group) => ({
       ...group,
       translations: group.translations.map(
-        (item) => editedTranslations.find((t) => t.id === item.id) ?? item
+        (item) => enrichTranslations.find((t) => t.id === item.id) ?? item
       ),
     }))
-  }, [editedTranslations, translations])
+  }, [enrichTranslations, translations])
+
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [previewTranslation, setPreviewTranslation] = useState<Translation | null>(null)
   const [isPreviewProcessing, setIsPreviewProcessing] = useState(false)
@@ -174,7 +181,7 @@ export function AdvancedTranslationEditor({
         if (e instanceof Error) {
           toast.error(e?.message ?? '미리보기 조회 실패')
         } else {
-          totalIssues.errot('미리보기 조회 실패')
+          // totalIssues.errot('미리보기 조회 실패')
         }
       }
     }, 800)
@@ -317,18 +324,21 @@ export function AdvancedTranslationEditor({
   }, [])
 
   // 이슈 통계
-  const issueStats = {
-    term: editedTranslations.reduce(
-      (acc, t) => acc + t.issues.filter((i) => i.type === 'term').length,
-      0
-    ),
-    length: editedTranslations.reduce(
-      (acc, t) => acc + t.issues.filter((i) => i.type === 'length').length,
-      0
-    ),
-  }
+  const issueStats = useMemo(
+    () => ({
+      term: enrichTranslations.reduce(
+        (acc, t) => acc + (t.issues ?? []).filter((i) => i.type === 'term').length,
+        0
+      ),
+      length: enrichTranslations.reduce(
+        (acc, t) => acc + (t.issues ?? []).filter((i) => i.type === 'length').length,
+        0
+      ),
+    }),
+    [enrichTranslations]
+  )
 
-  const totalIssues = editedTranslations.reduce((acc, t) => acc + t.issues.length, 0)
+  const totalIssues = enrichTranslations.reduce((acc, t) => acc + (t.issues?.length ?? 0), 0)
 
   const handleTranslationChange = (id: string, newText: string) => {
     setEditedTranslations((prev) =>
@@ -343,36 +353,36 @@ export function AdvancedTranslationEditor({
     toast.success('제안이 적용되었습니다')
   }
 
-  const handleApplyCorrectionSuggestion = (id: string, suggestion: CorrectionSuggestion) => {
-    setEditedTranslations((prev) =>
-      prev.map((t) => {
-        if (t.id !== id) return t
-        const remaining = t.correctionSuggestions?.filter((s) => s.id !== suggestion.id) ?? []
-        return {
-          ...t,
-          translated: suggestion.text,
-          correctionSuggestions: remaining,
-        }
-      })
-    )
-    toast.success(`${suggestion.reason} 교정 후보가 적용되었습니다`)
-  }
+  // const handleApplyCorrectionSuggestion = (id: string, suggestion: CorrectionSuggestion) => {
+  //   setEditedTranslations((prev) =>
+  //     prev.map((t) => {
+  //       if (t.id !== id) return t
+  //       const remaining = t.correctionSuggestions?.filter((s) => s.id !== suggestion.id) ?? []
+  //       return {
+  //         ...t,
+  //         translated: suggestion.text,
+  //         correctionSuggestions: remaining,
+  //       }
+  //     })
+  //   )
+  //   toast.success(`${suggestion.reason} 교정 후보가 적용되었습니다`)
+  // }
 
-  const handleApplyTermCorrection = (id: string, correction: TermCorrection) => {
-    setEditedTranslations((prev) =>
-      prev.map((t) => {
-        if (t.id !== id) return t
-        const updatedText = t.translated.replace(correction.original, correction.replacement)
-        const remainingTerms = t.termCorrections?.filter((c) => c.id !== correction.id) ?? []
-        return {
-          ...t,
-          translated: updatedText,
-          termCorrections: remainingTerms,
-        }
-      })
-    )
-    toast.success('용어 교정이 적용되었습니다')
-  }
+  // const handleApplyTermCorrection = (id: string, correction: TermCorrection) => {
+  //   setEditedTranslations((prev) =>
+  //     prev.map((t) => {
+  //       if (t.id !== id) return t
+  //       const updatedText = t.translated.replace(correction.original, correction.replacement)
+  //       const remainingTerms = t.termCorrections?.filter((c) => c.id !== correction.id) ?? []
+  //       return {
+  //         ...t,
+  //         translated: updatedText,
+  //         termCorrections: remainingTerms,
+  //       }
+  //     })
+  //   )
+  //   toast.success('용어 교정이 적용되었습니다')
+  // }
 
   const handleRetranslate = async (id: string) => {
     if (!projectID) {
@@ -496,312 +506,313 @@ export function AdvancedTranslationEditor({
 
       {/* 메인 컨텐츠 */}
       <main className="max-w-7xl mx-auto px-6 py-6">
-        <Tabs value={selectedTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList>
+        {/* <Tabs value={selectedTab} onValueChange={handleTabChange} className="space-y-6"> */}
+        {/* <TabsList>
             <TabsTrigger value="edit">번역 편집</TabsTrigger>
             {isDubbing && <TabsTrigger value="voice">보이스 설정</TabsTrigger>}
-          </TabsList>
+          </TabsList> */}
 
-          <TabsContent value="edit" className="grid grid-cols-1 lg:grid-cols-4 gap-6 m-0">
-            {/* 왼쪽: 영상 미리보기 + 이슈 요약 */}
-            <div className="lg:col-span-1 space-y-4">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <MonitorPlay className="w-4 h-4 text-blue-500" />
-                    원본 영상
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-900">
-                    <video
-                      className="w-full h-full object-cover"
-                      controls
-                      poster="https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1280&q=60"
-                    >
-                      <source
-                        src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
-                        type="video/mp4"
-                      />
-                      브라우저가 video 태그를 지원하지 않습니다.
-                    </video>
+        {/* <TabsContent value="edit" className="grid grid-cols-1 lg:grid-cols-4 gap-6 m-0"> */}
+        {/* 왼쪽: 영상 미리보기 + 이슈 요약 */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 m-0">
+          <div className="lg:col-span-1 space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MonitorPlay className="w-4 h-4 text-blue-500" />
+                  원본 영상
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-900">
+                  <video
+                    className="w-full h-full object-cover"
+                    controls
+                    poster="https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1280&q=60"
+                  >
+                    <source
+                      src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+                      type="video/mp4"
+                    />
+                    브라우저가 video 태그를 지원하지 않습니다.
+                  </video>
+                </div>
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>00:01:12 / 05:23</span>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[11px]">
+                      1080p
+                    </Badge>
+                    <Badge variant="outline" className="text-[11px]">
+                      자막 ON
+                    </Badge>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>00:01:12 / 05:23</span>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-[11px]">
-                        1080p
-                      </Badge>
-                      <Badge variant="outline" className="text-[11px]">
-                        자막 ON
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      현재 구간 반복
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1">
-                      전체 화면
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-              <IussueCard issueStats={issueStats} />
-              <StatisticsCard editedTranslations={editedTranslations} />
-            </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="flex-1">
+                    현재 구간 반복
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1">
+                    전체 화면
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            <IussueCard issueStats={issueStats} />
 
-            {/* 오른쪽: 번역 리스트 */}
-            <div className="lg:col-span-3">
-              <div className="space-y-4">
-                {translationGroups.map((group, gidx) => {
-                  // const groupIssues = group.translations.reduce(
-                  //   (acc, item) => acc + item.issues.length,
-                  //   0
-                  // )
-                  return (
-                    <Card
-                      key={group.key}
-                      // className={`${groupIssues > 0 ? 'border-orange-300 bg-orange-50/30' : ''}`}
-                    >
-                      <CardContent className="p-4 space-y-4">
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs bg-gray-100 px-2 py-1 rounded font-mono">
-                            {group.timestamp}
-                          </span>
-                          {group.translations.length > 1 && (
-                            <Badge variant="secondary" className="text-xs">
-                              동시 화자 {group.translations.length}명
-                            </Badge>
-                          )}
-                          <span className="text-xs text-gray-400">{gidx + 1}번째 세그먼트</span>
-                        </div>
+            <StatisticsCard editedTranslations={enrichTranslations} />
+          </div>
 
-                        <div className="space-y-3">
-                          {group.translations.map((translation) => {
-                            const segmentDuration = getSegmentDuration(translation)
-                            const safeSegmentDuration = segmentDuration || 1
-                            const originalSpeech =
-                              translation.originalSpeechSeconds ?? segmentDuration
-                            const translatedSpeech =
-                              translation.translatedSpeechSeconds ?? segmentDuration
-                            const originalProgress = originalSpeech
-                              ? (originalSpeech / safeSegmentDuration) * 100
+          {/* 오른쪽: 번역 리스트 */}
+          <div className="lg:col-span-3">
+            <div className="space-y-4">
+              {translationGroups.map((group, gidx) => {
+                // const groupIssues = group.translations.reduce(
+                //   (acc, item) => acc + item.issues.length,
+                //   0
+                // )
+                return (
+                  <Card
+                    key={group.key}
+                    // className={`${groupIssues > 0 ? 'border-orange-300 bg-orange-50/30' : ''}`}
+                  >
+                    <CardContent className="p-4 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs bg-gray-100 px-2 py-1 rounded font-mono">
+                          {group.timestamp}
+                        </span>
+                        {group.translations.length > 1 && (
+                          <Badge variant="secondary" className="text-xs">
+                            동시 화자 {group.translations.length}명
+                          </Badge>
+                        )}
+                        <span className="text-xs text-gray-400">{gidx + 1}번째 세그먼트</span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {group.translations.map((translation) => {
+                          const segmentDuration = getSegmentDuration(translation)
+                          const safeSegmentDuration = segmentDuration || 1
+                          const originalSpeech =
+                            translation.originalSpeechSeconds ?? segmentDuration
+                          const translatedSpeech =
+                            translation.translatedSpeechSeconds ?? segmentDuration
+                          const originalProgress = originalSpeech
+                            ? (originalSpeech / safeSegmentDuration) * 100
+                            : 0
+                          const translatedProgress = translatedSpeech
+                            ? (translatedSpeech / safeSegmentDuration) * 100
+                            : 0
+                          const translatedDelta =
+                            translatedSpeech && segmentDuration
+                              ? translatedSpeech - segmentDuration
                               : 0
-                            const translatedProgress = translatedSpeech
-                              ? (translatedSpeech / safeSegmentDuration) * 100
-                              : 0
-                            const translatedDelta =
-                              translatedSpeech && segmentDuration
-                                ? translatedSpeech - segmentDuration
-                                : 0
-                            const translatedDeltaLabel =
-                              translatedSpeech && segmentDuration
-                                ? `${
-                                    translatedDelta >= 0 ? '+' : ''
-                                  }${translatedDelta.toFixed(1)}초`
-                                : '0.0초'
-                            const translatedDeltaClass =
-                              translatedSpeech && segmentDuration
-                                ? translatedDelta > 0.3
-                                  ? 'text-red-600'
-                                  : translatedDelta < -0.3
-                                    ? 'text-emerald-600'
-                                    : 'text-gray-500'
-                                : 'text-gray-500'
+                          const translatedDeltaLabel =
+                            translatedSpeech && segmentDuration
+                              ? `${translatedDelta >= 0 ? '+' : ''}${translatedDelta.toFixed(1)}초`
+                              : '0.0초'
+                          const translatedDeltaClass =
+                            translatedSpeech && segmentDuration
+                              ? translatedDelta > 0.3
+                                ? 'text-red-600'
+                                : translatedDelta < -0.3
+                                  ? 'text-emerald-600'
+                                  : 'text-gray-500'
+                              : 'text-gray-500'
 
-                            const correctionSuggestions = translation.correctionSuggestions ?? []
-                            // const termCorrections = translation.termCorrections ?? []
-                            const issueSuggestionItems = translation.issues
-                              .filter((issue) => issue.suggestion)
-                              .map((issue, issueIdx) => ({
-                                id: `${translation.id}-issue-${issueIdx}`,
-                                text: issue.suggestion!,
-                                reason: `${getIssueLabel(issue.type)} 교정`,
-                                onApply: () =>
-                                  handleApplyIssueSuggestion(translation.id, issue.suggestion!),
-                              }))
-                            const correctionSuggestionItems = correctionSuggestions.map(
-                              (suggestion) => ({
-                                id: suggestion.id,
-                                text: suggestion.text,
-                                reason: suggestion.reason,
-                                onApply: () =>
-                                  handleApplyCorrectionSuggestion(translation.id, suggestion),
-                              })
-                            )
-                            const combinedSuggestions = [
-                              ...issueSuggestionItems,
-                              ...correctionSuggestionItems,
-                            ]
+                          const issues = translation.issues ?? []
+                          // const correctionSuggestions = translation.correctionSuggestions ?? []
+                          // const termCorrections = translation.termCorrections ?? []
 
-                            return (
-                              <div
-                                key={translation.id}
-                                className="rounded-lg border border-gray-200/70 bg-white/70 p-4 space-y-3"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <Badge
-                                      variant="outline"
-                                      className="text-xs bg-gray-100 text-gray-700"
-                                    >
-                                      세그먼트 {gidx + 1}
+                          const issueSuggestionItems = issues
+                            // .filter((issue) => issue.suggestion)
+                            .map((issue) => ({
+                              id: issue._id,
+                              reason: issue.message,
+                              text: issue.recommend_text ?? '',
+                              onApply: () =>
+                                handleApplyIssueSuggestion(
+                                  translation.id,
+                                  issue.recommend_text ?? ''
+                                ),
+                            }))
+
+                          // const correctionSuggestionItems = correctionSuggestions.map(
+                          //   (suggestion) => ({
+                          //     id: suggestion.id,
+                          //     text: suggestion.text,
+                          //     reason: suggestion.reason,
+                          //     onApply: () =>
+                          //       handleApplyCorrectionSuggestion(translation.id, suggestion),
+                          //   })
+                          // )
+                          const combinedSuggestions = [
+                            ...issueSuggestionItems,
+                            // ...correctionSuggestionItems,
+                          ]
+
+                          return (
+                            <div
+                              key={translation.id}
+                              className="rounded-lg border border-gray-200/70 bg-white/70 p-4 space-y-3"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs bg-gray-100 text-gray-700"
+                                  >
+                                    세그먼트 {gidx + 1}
+                                  </Badge>
+                                  {translation.speaker && (
+                                    <Badge variant="outline" className="text-xs">
+                                      화자 {translation.speaker}
                                     </Badge>
-                                    {translation.speaker && (
-                                      <Badge variant="outline" className="text-xs">
-                                        화자 {translation.speaker}
-                                      </Badge>
+                                  )}
+                                  <div className="flex items-center gap-1">
+                                    {translation.confidence >= 0.8 ? (
+                                      <CheckCircle2 className="w-3 h-3 text-green-500" />
+                                    ) : (
+                                      <AlertTriangle className="w-3 h-3 text-yellow-500" />
                                     )}
-                                    <div className="flex items-center gap-1">
-                                      {translation.confidence >= 0.8 ? (
-                                        <CheckCircle2 className="w-3 h-3 text-green-500" />
-                                      ) : (
-                                        <AlertTriangle className="w-3 h-3 text-yellow-500" />
-                                      )}
-                                      <span className="text-xs text-gray-500">
-                                        {(translation.confidence * 100).toFixed(0)}%
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-7 gap-1"
-                                      onClick={() => handlePreview(translation)}
-                                    >
-                                      <Play className="w-3 h-3" />
-                                      미리보기
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-7 gap-1"
-                                      onClick={() => handleRetranslate(translation.id)}
-                                    >
-                                      <RotateCcw className="w-3 h-3" />
-                                      재번역
-                                    </Button>
+                                    <span className="text-xs text-gray-500">
+                                      {(translation.confidence * 100).toFixed(0)}%
+                                    </span>
                                   </div>
                                 </div>
-                                {translation.issues.length > 0 && (
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {translation.issues.map((issue, issueIdx) => (
-                                      <Badge
-                                        key={issueIdx}
-                                        variant="outline"
-                                        className={`text-xs ${
-                                          issue.severity === 'error'
-                                            ? 'border-red-300 bg-red-50 text-red-700'
-                                            : 'border-yellow-300 bg-yellow-50 text-yellow-700'
-                                        }`}
-                                      >
-                                        {getIssueIcon(issue.type)}
-                                        <span className="ml-1">
-                                          {getIssueLabel(issue.type)}: {issue.message}
-                                        </span>
-                                      </Badge>
-                                    ))}
+                                <div className="flex gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 gap-1"
+                                    onClick={() => handlePreview(translation)}
+                                  >
+                                    <Play className="w-3 h-3" />
+                                    미리보기
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 gap-1"
+                                    onClick={() => handleRetranslate(translation.id)}
+                                  >
+                                    <RotateCcw className="w-3 h-3" />
+                                    재번역
+                                  </Button>
+                                </div>
+                              </div>
+                              {segmentDuration > 0 && (
+                                <div className="space-y-2 text-xs">
+                                  <div className="flex items-center gap-3 text-gray-500">
+                                    <span className="w-16 shrink-0">원문 발화</span>
+                                    <div className="flex-1 h-1 bg-gray-200/80 rounded-full overflow-hidden relative">
+                                      <span
+                                        className="absolute inset-y-0 w-0.5 bg-gray-400/70"
+                                        style={{ left: 'calc(100% - 1px)' }}
+                                      />
+                                      <div
+                                        className={`h-full ${getGaugeColor(originalProgress)}`}
+                                        style={{
+                                          width: `${Math.min(Math.max(originalProgress, 0), 100)}%`,
+                                        }}
+                                      />
+                                    </div>
+                                    <span className="w-28 text-right">
+                                      {formatSeconds(originalSpeech)} /{' '}
+                                      {formatSeconds(segmentDuration)}
+                                    </span>
                                   </div>
-                                )}
-                                {segmentDuration > 0 && (
-                                  <div className="space-y-2 text-xs">
-                                    <div className="flex items-center gap-3 text-gray-500">
-                                      <span className="w-16 shrink-0">원문 발화</span>
-                                      <div className="flex-1 h-1 bg-gray-200/80 rounded-full overflow-hidden relative">
-                                        <span
-                                          className="absolute inset-y-0 w-[2px] bg-gray-400/70"
-                                          style={{ left: 'calc(100% - 1px)' }}
-                                        />
-                                        <div
-                                          className={`h-full ${getGaugeColor(originalProgress)}`}
-                                          style={{
-                                            width: `${Math.min(
-                                              Math.max(originalProgress, 0),
-                                              100
-                                            )}%`,
-                                          }}
-                                        />
-                                      </div>
-                                      <span className="w-28 text-right">
-                                        {formatSeconds(originalSpeech)} /{' '}
+
+                                  <div className="flex items-center gap-3">
+                                    <span className="w-16 shrink-0 text-gray-500">번역 발화</span>
+                                    <div className="flex-1 h-1 bg-gray-200/80 rounded-full overflow-hidden relative">
+                                      <span
+                                        className="absolute inset-y-0 w-0.5 bg-gray-400/70"
+                                        style={{ left: 'calc(100% - 1px)' }}
+                                      />
+                                      <div
+                                        className={`h-full ${getGaugeColor(translatedProgress)}`}
+                                        style={{
+                                          width: `${Math.min(Math.max(translatedProgress, 0), 100)}%`,
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="flex items-center justify-end gap-2 w-36">
+                                      <span className="text-gray-500">
+                                        {formatSeconds(translatedSpeech)} /{' '}
                                         {formatSeconds(segmentDuration)}
                                       </span>
-                                    </div>
-
-                                    <div className="flex items-center gap-3">
-                                      <span className="w-16 shrink-0 text-gray-500">번역 발화</span>
-                                      <div className="flex-1 h-1 bg-gray-200/80 rounded-full overflow-hidden relative">
-                                        <span
-                                          className="absolute inset-y-0 w-[2px] bg-gray-400/70"
-                                          style={{ left: 'calc(100% - 1px)' }}
-                                        />
-                                        <div
-                                          className={`h-full ${getGaugeColor(translatedProgress)}`}
-                                          style={{
-                                            width: `${Math.min(
-                                              Math.max(translatedProgress, 0),
-                                              100
-                                            )}%`,
-                                          }}
-                                        />
-                                      </div>
-                                      <div className="flex items-center justify-end gap-2 w-36">
-                                        <span className="text-gray-500">
-                                          {formatSeconds(translatedSpeech)} /{' '}
-                                          {formatSeconds(segmentDuration)}
+                                      {translatedSpeech && segmentDuration ? (
+                                        <span className={translatedDeltaClass}>
+                                          {translatedDeltaLabel}
                                         </span>
-                                        {translatedSpeech && segmentDuration ? (
-                                          <span className={translatedDeltaClass}>
-                                            {translatedDeltaLabel}
-                                          </span>
-                                        ) : null}
-                                      </div>
+                                      ) : null}
                                     </div>
                                   </div>
-                                )}
-                                <div>
-                                  <label className="text-xs text-gray-500 mb-1 block">원문</label>
-                                  <div className="bg-gray-50 p-3 rounded text-sm">
-                                    {translation.original}
-                                  </div>
                                 </div>
-                                <div>
-                                  <label className="text-xs text-gray-500 mb-1 block">번역</label>
-                                  <Textarea
-                                    value={translation.translated}
-                                    onChange={(e) =>
-                                      handleTranslationChange(translation.id, e.target.value)
-                                    }
-                                    className="min-h-[80px] resize-none"
-                                  />
+                              )}
+                              <div>
+                                <label className="text-xs text-gray-500 mb-1 block">원문</label>
+                                <div className="bg-gray-50 p-3 rounded text-sm">
+                                  {translation.original}
                                 </div>
-                                <TermCorrectionCard
-                                  termCorrections={correctionSuggestions}
-                                  onApply={handleApplyTermCorrection}
-                                />
-                                <Suggestion combinedSuggestions={combinedSuggestions} />
                               </div>
-                            )
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
+                              <div>
+                                <label className="text-xs text-gray-500 mb-1 block">번역</label>
+                                <Textarea
+                                  value={translation.translated}
+                                  onChange={(e) =>
+                                    handleTranslationChange(translation.id, e.target.value)
+                                  }
+                                  className="min-h-20 resize-none"
+                                />
+                              </div>
+                              {/* {issues.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {issues.map((issue, issueIdx) => (
+                                    <Badge
+                                      key={issueIdx}
+                                      variant="outline"
+                                      className={`text-xs ${
+                                        issue.severity === 'error'
+                                          ? 'border-red-300 bg-red-50 text-red-700'
+                                          : 'border-yellow-300 bg-yellow-50 text-yellow-700'
+                                      }`}
+                                    >
+                                      {getIssueIcon(issue.type)}
+                                      <span className="ml-1">
+                                        {getIssueLabel(issue.type)}: {issue.message}
+                                      </span>
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )} */}
+                              <TermCorrectionCard
+                                termCorrections={combinedSuggestions}
+                                // onApply={handleApplyTermCorrection}
+                              />
+                              {/* <Suggestion combinedSuggestions={combinedSuggestions} /> */}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
             </div>
-          </TabsContent>
+          </div>
+        </div>
+        {/* </TabsContent> */}
 
-          {isDubbing && (
-            <TabsContent value="voice" className="m-0">
-              {showVoiceSelector && (
-                <VoiceSelector translations={editedTranslations} onVoiceChange={onVoiceChange} />
-              )}
-            </TabsContent>
-          )}
-        </Tabs>
+        {/* {isDubbing && (
+          <TabsContent value="voice" className="m-0">
+            {showVoiceSelector && (
+              <VoiceSelector translations={editedTranslations} onVoiceChange={onVoiceChange} />
+            )}
+          </TabsContent>
+        )} */}
+        {/* </Tabs> */}
       </main>
 
       <Dialog open={isPreviewOpen} onOpenChange={handlePreviewOpenChange}>
