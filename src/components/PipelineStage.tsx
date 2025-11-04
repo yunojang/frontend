@@ -19,7 +19,7 @@ export function PipelineStage({
   title,
   description,
   status,
-  // progress = 0,
+  progress = 0,
   onEdit,
   showEditButton = false,
   editLabel,
@@ -102,7 +102,14 @@ export function PipelineStage({
                 {/* {estimatedTime && <span className="ml-1 text-gray-400">예상 {estimatedTime}</span>} */}
               </div>
               <div className="h-2 w-full overflow-hidden rounded bg-muted">
-                <div className="h-full w-full rounded bg-blue-500/60 animate-pulse" />
+                {progress === 0 ? (
+                  <div className="h-full w-full rounded bg-blue-500/60 animate-pulse" />
+                ) : (
+                  <div
+                    className="h-full rounded bg-blue-500/80 transition-[width]"
+                    style={{ width: `${Math.min(Math.max(progress, 0), 100)}%` }}
+                  />
+                )}
               </div>
             </div>
           )}
